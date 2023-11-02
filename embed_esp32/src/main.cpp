@@ -3,106 +3,98 @@
 #include <HTTPClient.h>
 #include <M5Stack.h>
 #include <time.h>
+#include "M5_ENV.h"
+
+// offsets for the lcd screen
+#define X_OFFSET 140
+#define Y_OFFSET 10
+#define X_LOCAL 40
+#define Y_LOCAL 30
+#define FRONT 2
+
 
 const char* ssid = "2.4ghz_meo_wifi";
 const char* password = "adminadmin";
 
 const char* BASE_URL = "http://meo.local";
 
+SHT3X sht30;
 
-class Sensor {
-public:
-    String name;
-    String building_id;
-    String facility_id;
-    String sensor_id;
+float temp = 0.0;
+float humd = 0.0;
 
-    Sensor() {
-        name = httpGet(String(BASE_URL) + "/get_target_name/");
-        building_id = httpGet(String(BASE_URL) + "/get_target_building/");
-        facility_id = httpGet(String(BASE_URL) + "/get_target_facility/");
-        
-        String url = String(BASE_URL) + "/sensor/";
-        String payload = "{\"name\":\"" + name + "\", \"building_id\":\"" + building_id + "\"}";
-        
-        String response = httpPost(url, payload);
-        if (response.indexOf("id") != -1) {
-            sensor_id = parseJson(response, "id");
-        } else {
-            sensor_id = "";
-        }
+String httpGet(const String& url) {
+    HTTPClient http;
+    http.begin(url);
+    int httpCode = http.GET();
+    if (httpCode > 0) {
+        return http.getString();
+    } else {
+        return "";
     }
-
-String getCurrentDatetime() {
-    // Configure NTP
-    configTime(0, 0, "pool.ntp.org");  // UTC
-
-    time_t now = 0;
-    struct tm timeinfo = { 0 };
-    int retries = 10;
-    while(timeinfo.tm_year < (2016 - 1900) && retries--) {
-        delay(1000);
-        time(&now);
-        localtime_r(&now, &timeinfo);
-    }
-
-    char datetime[64];
-    strftime(datetime, sizeof(datetime), "%Y-%m-%dT%H:%M:%SZ", &timeinfo);
-
-    return String(datetime);
+    http.end();
 }
 
-private:
-
-    String httpGet(const String& url) {
-        HTTPClient http;
-        http.begin(url);
-        int httpCode = http.GET();
-        if (httpCode > 0) {
-            return http.getString();
-        } else {
-            return "";
-        }
-        http.end();
+void TempHumRead(void) {
+    if (sht30.get() == 0) {  // Obtain the data of shT30.  获取sht30的数据
+        temp = sht30.cTemp;  // Store the temperature obtained from shT30.
+                             // 将sht30获取到的温度存储
+        humd = sht30.humidity;  // Store the humidity obtained from the SHT30.
+                                // 将sht30获取到的湿度存储
+    } else {
+        temp = 0, humd = 0;
     }
 
-    String httpPost(const String& url, const String& payload) {
-        HTTPClient http;
-        http.begin(url);
-        http.addHeader("Content-Type", "application/json");
-        int httpCode = http.POST(payload);
-        if (httpCode > 0) {
-            return http.getString();
-        } else {
-            return "";
-        }
-        http.end();
-    }
+    String temp_re = httpGet(String(BASE_URL) + "/get_temp/");
+    String humid_re = httpGet(String(BASE_URL) + "/get_humid/");
 
-    String parseJson(const String& jsonData, const String& key) {
-        // Simplified JSON parsing, consider using a library for complex cases
-        String searchStr = "\"" + key + "\":\"";
-        int startPos = jsonData.indexOf(searchStr) + searchStr.length();
-        int endPos = jsonData.indexOf("\"", startPos);
-        return jsonData.substring(startPos, endPos);
-    }
-};
+    M5.Lcd.setTextColor(TFT_GREEN, TFT_BLACK);
+    M5.Lcd.setCursor(X_LOCAL, Y_LOCAL + Y_OFFSET * 8, FRONT);
+    M5.Lcd.print("                     ");
+    M5.Lcd.setCursor(X_LOCAL, Y_LOCAL + Y_OFFSET * 8, FRONT);
+    M5.Lcd.print(temp_re);
 
-enum SensorType {
-    TEMPERATURE,
-    HUMIDITY
-};
+    M5.Lcd.setCursor(X_LOCAL + X_OFFSET, Y_LOCAL + Y_OFFSET * 8, FRONT);
+    M5.Lcd.print("                     ");
+    M5.Lcd.setCursor(X_LOCAL + X_OFFSET, Y_LOCAL + Y_OFFSET * 8, FRONT);
+    M5.Lcd.print(humid_re);
 
-struct SensorValue {
-    SensorType type;
-    float max_value;
-    float low_value;
-    float value;
-    String datetime;
-    String sensor_id;
-};
+    M5.Lcd.setCursor(X_LOCAL, Y_LOCAL + Y_OFFSET+13 * 8, FRONT);
+    M5.Lcd.print("                     ");
+    M5.Lcd.setCursor(X_LOCAL, Y_LOCAL + Y_OFFSET+13 * 8, FRONT);
+    M5.Lcd.print("Real T M P:");
+    M5.Lcd.print(temp);
 
-Sensor global_sensor;
+    M5.Lcd.setCursor(X_LOCAL + X_OFFSET, Y_LOCAL + Y_OFFSET+13 * 8, FRONT);
+    M5.Lcd.print("                     ");
+    M5.Lcd.setCursor(X_LOCAL + X_OFFSET, Y_LOCAL + Y_OFFSET+13 * 8, FRONT);
+    M5.Lcd.print("Real H M D:");
+    M5.Lcd.print(humd);
+}
+
+
+void temp_humidity_data() {
+    String temp = httpGet(String(BASE_URL) + "/get_temp/");
+    String humid = httpGet(String(BASE_URL) + "/get_humid/");
+
+       
+    M5.Lcd.setTextColor(TFT_GREEN, TFT_BLACK);
+    M5.Lcd.setCursor(10, 10 + 10 * 8, 10);
+    M5.Lcd.println(temp + "TEEEEMP");
+    M5.Lcd.println(humid + "HMIIID");
+
+
+    TempHumRead();
+}
+
+
+
+
+void loop() {
+    temp_humidity_data();
+    M5.update();
+    delay(1000);
+}
 
 void setup() {
     M5.begin();
@@ -112,59 +104,15 @@ void setup() {
     }
     M5.Lcd.clear();
     M5.Lcd.println("Starting application");
+    M5.Lcd.println();
+    M5.Lcd.println("-----------------");
+    loop();
+
+
 }
 
-void loop() {
-    post_temp_humidity_data();
-    M5.update();
-    delay(1000);
-}
 
-void post_temp_humidity_data() {
-    // Placeholder for temperature and humidity readings
-    float temperature = 25.0; 
-    float humidity = 60.0;
 
-    M5.Lcd.printf("Temp: %f\nHum: %f", temperature, humidity);
-    
-    // Create SensorValue instances for temperature and humidity
-    SensorValue tempValue;
-    tempValue.type = TEMPERATURE;
-    tempValue.value = temperature;
-    tempValue.max_value = 30.0; // Placeholder max value
-    tempValue.low_value = 20.0; // Placeholder low value
-    tempValue.datetime = getCurrentDatetime(); // Placeholder datetime, consider using a real-time clock or NTP
-    tempValue.sensor_id = global_sensor.sensor_id;
 
-    SensorValue humValue;
-    humValue.type = HUMIDITY;
-    humValue.value = humidity;
-    humValue.max_value = 100.0; // Placeholder max value
-    humValue.low_value = 0.0;   // Placeholder low value
-    humValue.datetime = getCurrentDatetime();  // Placeholder datetime
-    humValue.sensor_id = global_sensor.sensor_id;
 
-    // Convert SensorValue to JSON and send using HTTP POST
-    sendSensorData(tempValue);
-    sendSensorData(humValue);
-}
 
-void sendSensorData(const SensorValue& data) {
-    String typeStr = (data.type == TEMPERATURE) ? "TEMPERATURE" : "HUMIDITY";
-    String payload = "{\"type\":\"" + typeStr + "\",";
-    payload += "\"value\":" + String(data.value) + ",";
-    payload += "\"max_value\":" + String(data.max_value) + ",";
-    payload += "\"low_value\":" + String(data.low_value) + ",";
-    payload += "\"datetime\":\"" + data.datetime + "\",";
-    payload += "\"sensor_id\":\"" + data.sensor_id + "\"}";
-
-    HTTPClient http;
-    http.begin(String(BASE_URL) + "/send_sensor_data/"); // Assuming this endpoint
-    http.addHeader("Content-Type", "application/json");
-    int httpCode = http.POST(payload);
-    if (httpCode > 0) {
-        String response = http.getString();
-        // Optionally handle the response, e.g., check for success
-    }
-    http.end();
-}
