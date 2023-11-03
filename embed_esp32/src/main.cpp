@@ -45,19 +45,6 @@ void TempHumRead(void) {
         temp = 0, humd = 0;
     }
 
-    String temp_re = httpGet(String(BASE_URL) + "/get_temp/");
-    String humid_re = httpGet(String(BASE_URL) + "/get_humid/");
-
-    M5.Lcd.setTextColor(TFT_GREEN, TFT_BLACK);
-    M5.Lcd.setCursor(X_LOCAL, Y_LOCAL + Y_OFFSET * 8, FRONT);
-    M5.Lcd.print("                     ");
-    M5.Lcd.setCursor(X_LOCAL, Y_LOCAL + Y_OFFSET * 8, FRONT);
-    M5.Lcd.print(temp_re);
-
-    M5.Lcd.setCursor(X_LOCAL + X_OFFSET, Y_LOCAL + Y_OFFSET * 8, FRONT);
-    M5.Lcd.print("                     ");
-    M5.Lcd.setCursor(X_LOCAL + X_OFFSET, Y_LOCAL + Y_OFFSET * 8, FRONT);
-    M5.Lcd.print(humid_re);
 
     M5.Lcd.setCursor(X_LOCAL, Y_LOCAL + Y_OFFSET+13 * 8, FRONT);
     M5.Lcd.print("                     ");
@@ -71,22 +58,6 @@ void TempHumRead(void) {
     M5.Lcd.print("Real H M D:");
     M5.Lcd.print(humd);
 }
-
-
-void temp_humidity_data() {
-    String temp = httpGet(String(BASE_URL) + "/get_temp/");
-    String humid = httpGet(String(BASE_URL) + "/get_humid/");
-
-       
-    M5.Lcd.setTextColor(TFT_GREEN, TFT_BLACK);
-    M5.Lcd.setCursor(10, 10 + 10 * 8, 10);
-    M5.Lcd.println(temp + "TEEEEMP");
-    M5.Lcd.println(humid + "HMIIID");
-
-
-    TempHumRead();
-}
-
 
 void setup() {
     M5.begin();
@@ -140,7 +111,6 @@ void fetchHumidity(int sensor_id) {
         if(httpResponseCode == 200) {
             String response = http.getString();
             M5.Lcd.println("Humidity Data: " + response);
-            // Further processing can be done here
         } else {
             M5.Lcd.println("Error on HTTP request");
         }
