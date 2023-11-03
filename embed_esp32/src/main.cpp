@@ -88,27 +88,67 @@ void temp_humidity_data() {
 }
 
 
-
-
-void loop() {
-    temp_humidity_data();
-    M5.update();
-    delay(1000);
-}
-
 void setup() {
     M5.begin();
     WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED) {
         delay(1000);
+        M5.Lcd.println(".");
     }
     M5.Lcd.clear();
+    M5.Lcd.println("Connected to WiFi");
     M5.Lcd.println("Starting application");
-    M5.Lcd.println();
     M5.Lcd.println("-----------------");
-    loop();
+}
 
+void loop() {
+    int sensor_id = 1; // Replace with your actual sensor ID
+    fetchTemperature(sensor_id);
+    fetchHumidity(sensor_id);
+    M5.update();
+    delay(10000); // Delay for 10 seconds between updates
+}
 
+void fetchTemperature(int sensor_id) {
+    if(WiFi.status() == WL_CONNECTED) {
+        HTTPClient http;
+        String url = String(base_url) + "/get_temp_data/" + String(sensor_id);
+        http.begin(url);
+        int httpResponseCode = http.GET();
+        
+        if(httpResponseCode == 200) {
+            String response = http.getString();
+            M5.Lcd.println("Temperature Data: " + response);
+            // Further processing can be done here
+        } else {
+            M5.Lcd.println("Error on HTTP request");
+        }
+        
+        http.end();
+    } else {
+        M5.Lcd.println("WiFi Disconnected");
+    }
+}
+
+void fetchHumidity(int sensor_id) {
+    if(WiFi.status() == WL_CONNECTED) {
+        HTTPClient http;
+        String url = String(base_url) + "/get_humid_data/" + String(sensor_id);
+        http.begin(url);
+        int httpResponseCode = http.GET();
+        
+        if(httpResponseCode == 200) {
+            String response = http.getString();
+            M5.Lcd.println("Humidity Data: " + response);
+            // Further processing can be done here
+        } else {
+            M5.Lcd.println("Error on HTTP request");
+        }
+        
+        http.end();
+    } else {
+        M5.Lcd.println("WiFi Disconnected");
+    }
 }
 
 
