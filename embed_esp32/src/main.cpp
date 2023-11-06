@@ -4,6 +4,8 @@
 #include <M5Stack.h>
 #include <time.h>
 #include "M5_ENV.h"
+#include <Adafruit_NeoPixel.h>
+
 
 // offsets for the lcd screen
 #define X_OFFSET 140
@@ -12,16 +14,27 @@
 #define Y_LOCAL 30
 #define FRONT 2
 
+#define LED_PIN 26  // The pin where the LED data line is connected
+#define NUM_LEDS 1  // The number of LEDs you have
+
+Adafruit_NeoPixel pixels(NUM_LEDS, LED_PIN, NEO_GRBW + NEO_KHZ800);
 
 const char* ssid = "2.4ghz_meo_wifi";
 const char* password = "adminadmin";
 
-const char* BASE_URL = "http://meo.local";
+const char* BASE_URL = "http://meo.local/api";
+
+uint32_t greenColor = pixels.Color(0, 255, 0, 0); // RGBW: full green, no white
+uint32_t blackColor = pixels.Color(0, 0, 0, 0);   // RGBW: all off
+uint32_t redColor = pixels.Color(255, 0, 0, 0);   // RGBW: full red, no white
+
 
 SHT3X sht30;
 
-float temp = 0.0;
-float humd = 0.0;
+void setLedColor(uint32_t color) {
+    pixels.setPixelColor(0, color); // Set the color for the first pixel.
+    pixels.show(); // This sends the updated color value to the LEDs.
+}
 
 String httpGet(const String& url) {
     HTTPClient http;
@@ -30,99 +43,51 @@ String httpGet(const String& url) {
     if (httpCode > 0) {
         return http.getString();
     } else {
-        return "";
+        return "closed"; // Default to closed if there's an error
     }
     http.end();
 }
 
-void TempHumRead(void) {
-    if (sht30.get() == 0) {  // Obtain the data of shT30.  获取sht30的数据
-        temp = sht30.cTemp;  // Store the temperature obtained from shT30.
-                             // 将sht30获取到的温度存储
-        humd = sht30.humidity;  // Store the humidity obtained from the SHT30.
-                                // 将sht30获取到的湿度存储
+void checkWorkingHours() {
+    String url = String(BASE_URL) + "/control_lights";
+    String response = httpGet(url);
+
+    // Check the response from the server and display the appropriate message
+    M5.Lcd.setTextColor(TFT_GREEN, TFT_BLACK);
+    M5.Lcd.setCursor(10, 10 + 20 * 8, 2);
+    
+    if (response == "true") {
+        M5.Lcd.println("Greenhouse open");
+        setLedColor(greenColor); // Green for open
+    } else if (response == "false") {
+        M5.Lcd.println("Greenhouse closed");
+        setLedColor(blackColor); // Off for closed
     } else {
-        temp = 0, humd = 0;
+        // Print the actual response from the API
+        M5.Lcd.print("Response: ");
+        M5.Lcd.println(response);
+        setLedColor(redColor); // Red for unknown status
     }
-
-
-    M5.Lcd.setCursor(X_LOCAL, Y_LOCAL + Y_OFFSET+13 * 8, FRONT);
-    M5.Lcd.print("                     ");
-    M5.Lcd.setCursor(X_LOCAL, Y_LOCAL + Y_OFFSET+13 * 8, FRONT);
-    M5.Lcd.print("Real T M P:");
-    M5.Lcd.print(temp);
-
-    M5.Lcd.setCursor(X_LOCAL + X_OFFSET, Y_LOCAL + Y_OFFSET+13 * 8, FRONT);
-    M5.Lcd.print("                     ");
-    M5.Lcd.setCursor(X_LOCAL + X_OFFSET, Y_LOCAL + Y_OFFSET+13 * 8, FRONT);
-    M5.Lcd.print("Real H M D:");
-    M5.Lcd.print(humd);
 }
 
+
 void setup() {
-    M5.begin();
+    M5.begin(); 
+    pixels.begin();
     WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED) {
         delay(1000);
         M5.Lcd.println(".");
+        M5.Lcd.println(".");
     }
     M5.Lcd.clear();
     M5.Lcd.println("Connected to WiFi");
-    M5.Lcd.println("Starting application");
+    M5.Lcd.println();
     M5.Lcd.println("-----------------");
 }
 
 void loop() {
-    int sensor_id = 1; // Replace with your actual sensor ID
-    fetchTemperature(sensor_id);
-    fetchHumidity(sensor_id);
+    checkWorkingHours();
     M5.update();
-    delay(10000); // Delay for 10 seconds between updates
+    delay(1000);
 }
-
-void fetchTemperature(int sensor_id) {
-    if(WiFi.status() == WL_CONNECTED) {
-        HTTPClient http;
-        String url = String(base_url) + "/get_temp_data/" + String(sensor_id);
-        http.begin(url);
-        int httpResponseCode = http.GET();
-        
-        if(httpResponseCode == 200) {
-            String response = http.getString();
-            M5.Lcd.println("Temperature Data: " + response);
-            // Further processing can be done here
-        } else {
-            M5.Lcd.println("Error on HTTP request");
-        }
-        
-        http.end();
-    } else {
-        M5.Lcd.println("WiFi Disconnected");
-    }
-}
-
-void fetchHumidity(int sensor_id) {
-    if(WiFi.status() == WL_CONNECTED) {
-        HTTPClient http;
-        String url = String(base_url) + "/get_humid_data/" + String(sensor_id);
-        http.begin(url);
-        int httpResponseCode = http.GET();
-        
-        if(httpResponseCode == 200) {
-            String response = http.getString();
-            M5.Lcd.println("Humidity Data: " + response);
-        } else {
-            M5.Lcd.println("Error on HTTP request");
-        }
-        
-        http.end();
-    } else {
-        M5.Lcd.println("WiFi Disconnected");
-    }
-}
-
-
-
-
-
-
