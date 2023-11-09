@@ -6,14 +6,6 @@
 #include "M5_ENV.h"
 #include <Adafruit_NeoPixel.h>
 
-
-// offsets for the lcd screen
-#define X_OFFSET 60
-#define Y_OFFSET 0
-#define X_LOCAL 0
-#define Y_LOCAL 0
-#define FRONT 1
-
 #define LED_PIN 26  // The pin where the LED data line is connected
 #define NUM_LEDS 1  // The number of LEDs you have
 
@@ -37,8 +29,14 @@ void setLedColor(uint32_t color) {
 }
 
 String httpGet(const String& url) {
+    /*
+        @param: string url # This is the full url endpoint    
+        @returns: http resualt
+    */
+
     HTTPClient http;
     http.begin(url);
+    // The http code is the status code returned
     int httpCode = http.GET();
     if (httpCode > 0) {
         return http.getString();
@@ -48,6 +46,13 @@ String httpGet(const String& url) {
 }
 
 void checkWorkingHours() {
+    /*
+        @params: void
+        @returns: void
+        @details: The mothod calls the api endpoint using the method httpGet
+        It also sets the otputs the resualt to the screen
+    
+    */
     String url = String(BASE_URL) + "/control_lights";
     String response = httpGet(url);
 
@@ -70,9 +75,18 @@ void checkWorkingHours() {
 
 
 void setup() {
+    /*
+        @params: void
+        @returns: void
+        @details: This sets up the program 
+    */
+    // This powers up the screen
     M5.begin(); 
+    // Sets the text size
     M5.Lcd.setTextSize(2);
+    // Configures pin for output. This defaults to some uknown inside the libbary 
     pixels.begin();
+    // Loads the wifi config 
     WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED) {
         delay(1000);
